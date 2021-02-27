@@ -19,26 +19,26 @@
 #include <stdio.h>
 #include <util/delay.h>
 #include "clock.h"
-#include "serialF0.h"
 
 
 volatile long int time = 0;
-
+int i = 0; //debug
+int it = 0;
 
 ISR(PORTB_INT0_vect) {
 	TCE0.CNT = 0;
-	
-	while ((bit_is_set(PORTB.IN,PIN0_bp))) {
-		time = TCE0.CNT;
-		if ( (TCE0.CNT > 35000) ) {
-			break;
-		}
+	while ((bit_is_set(PORTB.IN,PIN0_bp)) && (TCE0.CNT < 35000)) {
+		asm volatile("nop");
 	}
-	
+	time = TCE0.CNT;
+	while (bit_is_set(PORTB.IN,PIN0_bp)) {
+		asm volatile("nop");		
+	}
 }
 
 void init_us(void) {
-	PORTA.DIRCLR = PIN0_bm;				//define/clear ports
+	PORTA.DIRSET = 0xFF;				//define/clear ports
+	PORTA.OUTCLR = 0xFF;
 	PORTB.DIRCLR = PIN0_bm;
 	
 	TCE0.CTRLA = TC_CLKSEL_DIV8_gc;		//start counter
@@ -48,21 +48,32 @@ void init_us(void) {
 	PORTB.INT0MASK = PIN0_bm;			//Port B, Interrupt 0 to Pin 0
 	PORTB.PIN0CTRL = PORT_ISC_RISING_gc;//activate on up
 	PORTB.INTCTRL = PORT_INT0LVL_LO_gc;	//Low level interrupts
-	
+	PMIC.CTRL |=  PMIC_LOLVLEN_bm;
 	sei();								//activate interrupts
 }
 
-long int getDistance(void) {
+long int getDistance(int device) {
+	
 	time = 0;
+	int device_ = (1 << (device-1));
+	drawRectangle(i, 200, i+18, 220); i+=20; //debug
 	float calc = 0.042875;
-	PORTA.DIRSET = PIN0_bm;
-	_delay_us(12);
-	PORTA.DIRCLR = PIN0_bm;
+	PORTA.OUTSET = device_;
+	_delay_us(15);
+	PORTA.OUTCLR = device_;
 	while (time == 0) {
 		asm volatile("nop");
 	}
 	if (time > 34998) {
-		return 65535;
+		if (it < 2) {
+			it++;
+			return getDistance(device);
+		} else {
+			it=0;
+			return 1500;
+		}
+		
 	}
+	it=0;
 	return (time * calc - 14);
 }

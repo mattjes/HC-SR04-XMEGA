@@ -7,5 +7,5 @@
 
 
 
-long int getDistance(void);
+long int getDistance(int device);
 void init_us(void);
