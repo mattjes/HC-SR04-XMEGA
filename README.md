@@ -16,4 +16,4 @@ Include header file
 
 init_us()
 
-long int getDistance() //Returns millimeters
+long int getDistance(int device) //Returns millimeters
